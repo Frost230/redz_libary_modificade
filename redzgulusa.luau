@@ -1139,7 +1139,9 @@ local function CreateTween(Configs)
 	local NewVal = Configs[3] or Configs.NewVal
 	local Time = Configs[4] or Configs.Time or 0.5
 	local TweenWait = Configs[5] or Configs.wait or false
-	local TweenInfo = TweenInfo.new(Time, Enum.EasingStyle.Quint)
+	local EasingStyle = Configs[6] or Configs.EasingStyle or Enum.EasingStyle.Quint
+	local EasingDirection = Configs[7] or Configs.EasingDirection or Enum.EasingDirection.Out
+	local TweenInfo = TweenInfo.new(Time, EasingStyle, EasingDirection)
 	
 	local Tween = TweenService:Create(Instance, TweenInfo, {[Prop] = NewVal})
 	Tween:Play()
@@ -2210,18 +2212,21 @@ function redzlib:MakeWindow(Configs)
 			}), "ScrollBar")
 			
 			local ScrollSize, WaitClick = 5
+			local DropDirection = string.lower(Configs.Direction or Configs.DropDirection or Configs.Side or "Down")
+			local DropWidth = Configs.Width or Configs.DropWidth or 152
 			local function Disable()
 				WaitClick = true
-				CreateTween({Arrow, "Rotation", 0, 0.2})
-				CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.2, true})
-				CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.2})
+				CreateTween({Arrow, "Rotation", 0, 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+				CreateTween({DropFrame, "Size", UDim2.new(0, DropWidth, 0, 0), 0.18, true, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+				CreateTween({DropFrame, "BackgroundTransparency", 0.95, 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+				CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
 				Arrow.Image = "rbxassetid://10709791523"
 				NoClickFrame.Visible = false
 				WaitClick = false
 			end
 			
 			local function GetFrameSize()
-				return UDim2.fromOffset(152, ScrollSize)
+				return UDim2.fromOffset(DropWidth, ScrollSize)
 			end
 			
 			local function CalculateSize()
@@ -2243,28 +2248,46 @@ function redzlib:MakeWindow(Configs)
 				WaitClick = true
 				if NoClickFrame.Visible then
 					Arrow.Image = "rbxassetid://10709791523"
-					CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.2})
-					CreateTween({DropFrame, "Size", UDim2.new(0, 152, 0, 0), 0.2, true})
+					CreateTween({Arrow, "ImageColor3", Color3.fromRGB(255, 255, 255), 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+					CreateTween({DropFrame, "Size", UDim2.new(0, DropWidth, 0, 0), 0.18, true, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+					CreateTween({DropFrame, "BackgroundTransparency", 0.95, 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
 					NoClickFrame.Visible = false
 				else
 					NoClickFrame.Visible = true
 					Arrow.Image = "rbxassetid://10709790948"
-					CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.2})
-					CreateTween({DropFrame, "Size", GetFrameSize(), 0.2, true})
+					CreateTween({Arrow, "ImageColor3", Theme["Color Theme"], 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+					CreateTween({DropFrame, "BackgroundTransparency", 0.05, 0.18, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
+					CreateTween({DropFrame, "Size", GetFrameSize(), 0.18, true, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
 				end
 				WaitClick = false
 			end
 			
 			local function CalculatePos()
 				local FramePos = SelectedFrame.AbsolutePosition
+				local FrameSize = SelectedFrame.AbsoluteSize
 				local ScreenSize = ScreenGui.AbsoluteSize
-				local ClampX = math.clamp((FramePos.X / UIScale), 0, ScreenSize.X / UIScale - DropFrame.Size.X.Offset)
-				local ClampY = math.clamp((FramePos.Y / UIScale) , 0, ScreenSize.Y / UIScale)
+				local PosX = FramePos.X / UIScale
+				local PosY = FramePos.Y / UIScale
+				local NewPos
+				local AnchorPoint = Vector2.new(0, 0)
 				
-				local NewPos = UDim2.fromOffset(ClampX, ClampY)
-				local AnchorPoint = FramePos.Y > ScreenSize.Y / 1.4 and 1 or ScrollSize > 80 and 0.5 or 0
-				DropFrame.AnchorPoint = Vector2.new(0, AnchorPoint)
-				CreateTween({DropFrame, "Position", NewPos, 0.1})
+				if DropDirection == "left" then
+					local ClampX = math.clamp(PosX - DropWidth, 0, ScreenSize.X / UIScale - DropWidth)
+					NewPos = UDim2.fromOffset(ClampX, PosY)
+					AnchorPoint = Vector2.new(1, 0)
+				elseif DropDirection == "right" then
+					local ClampX = math.clamp(PosX + FrameSize.X, 0, ScreenSize.X / UIScale - DropWidth)
+					NewPos = UDim2.fromOffset(ClampX, PosY)
+					AnchorPoint = Vector2.new(0, 0)
+				else
+					local ClampX = math.clamp(PosX, 0, ScreenSize.X / UIScale - DropWidth)
+					local ClampY = math.clamp(PosY + FrameSize.Y, 0, ScreenSize.Y / UIScale)
+					NewPos = UDim2.fromOffset(ClampX, ClampY)
+					AnchorPoint = Vector2.new(0, FramePos.Y > ScreenSize.Y / 1.4 and 1 or ScrollSize > 80 and 0.5 or 0)
+				end
+				
+				DropFrame.AnchorPoint = AnchorPoint
+				CreateTween({DropFrame, "Position", NewPos, 0.12, false, Enum.EasingStyle.Quint, Enum.EasingDirection.Out})
 			end
 			
 			local AddNewOptions, GetOptions, AddOption, RemoveOption, Selected, Select do
